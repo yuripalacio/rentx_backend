@@ -9,6 +9,7 @@ interface ICarsRepository {
     searcher?: string
   ): Promise<Car[]>;
   findById(id: string): Promise<Car>;
+  updateAvailable(id: string, available: boolean): Promise<void>;
 }
 
 export { ICarsRepository };
