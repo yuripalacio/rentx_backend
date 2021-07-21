@@ -26,9 +26,19 @@ describe("Create Rental", () => {
   });
 
   it("should be able to create a new rental", async () => {
+    const car = await carsRepositoryInMemory.create({
+      name: "Test Car Name",
+      description: "Car Test",
+      daily_rate: 100,
+      brand: "Test Brand",
+      category_id: "1234",
+      fine_amount: 40,
+      license_plate: "AAA999",
+    });
+
     const rental = await createRentalUseCase.execute({
       user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
-      car_id: "1758ab65-9af0-4786-af28-fecf4404b1aa",
+      car_id: car.id,
       expected_return_date: dayAdd24Hours,
     });
 
@@ -37,44 +47,64 @@ describe("Create Rental", () => {
   });
 
   it("should not be able to create a new rental if there is another open to the same user", async () => {
-    expect(async () => {
-      await createRentalUseCase.execute({
-        user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
-        car_id: "1758ab65-9af0-4786-af28-fecf4404b1aa",
-        expected_return_date: dayAdd24Hours,
-      });
+    await rentalsRepositoryInMemory.create({
+      user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
+      car_id: "firstCar",
+      expected_return_date: dayAdd24Hours,
+    });
 
-      await createRentalUseCase.execute({
+    await expect(
+      createRentalUseCase.execute({
         user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
-        car_id: "another-car-4786-af28-fecf4404b1aa",
+        car_id: "secondCar",
         expected_return_date: dayAdd24Hours,
-      });
-    }).rejects.toBeInstanceOf(AppError);
+      })
+    ).rejects.toEqual(new AppError("There's a rental in progress for user"));
   });
 
   it("should not be able to create a new rental if there is another open to the same car", async () => {
-    expect(async () => {
-      await createRentalUseCase.execute({
-        user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
-        car_id: "sameCar-9af0-4786-af28-fecf4404b1aa",
-        expected_return_date: dayAdd24Hours,
-      });
+    const sameCar = await carsRepositoryInMemory.create({
+      name: "Test Car Name",
+      description: "Car Test",
+      daily_rate: 100,
+      brand: "Test Brand",
+      category_id: "1234",
+      fine_amount: 40,
+      license_plate: "AAA999",
+    });
 
-      await createRentalUseCase.execute({
+    await createRentalUseCase.execute({
+      user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
+      car_id: sameCar.id,
+      expected_return_date: dayAdd24Hours,
+    });
+
+    await expect(
+      createRentalUseCase.execute({
         user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
-        car_id: "sameCar-9af0-4786-af28-fecf4404b1aa",
+        car_id: sameCar.id,
         expected_return_date: dayAdd24Hours,
-      });
-    }).rejects.toBeInstanceOf(AppError);
+      })
+    ).rejects.toEqual(new AppError("Car is unavailable"));
   });
 
   it("should not be able to create a new rental with invalid return time - less than 24h", async () => {
-    expect(async () => {
-      await createRentalUseCase.execute({
+    const car = await carsRepositoryInMemory.create({
+      name: "Test Car Name",
+      description: "Car Test",
+      daily_rate: 100,
+      brand: "Test Brand",
+      category_id: "1234",
+      fine_amount: 40,
+      license_plate: "AAA999",
+    });
+
+    await expect(
+      createRentalUseCase.execute({
         user_id: "c733aa0c-aaf5-4b8e-9569-d60d65eb7fb5",
-        car_id: "1758ab65-9af0-4786-af28-fecf4404b1aa",
+        car_id: car.id,
         expected_return_date: dayjs().toDate(),
-      });
-    }).rejects.toBeInstanceOf(AppError);
+      })
+    ).rejects.toEqual(new AppError("Invalid return time"));
   });
 });
